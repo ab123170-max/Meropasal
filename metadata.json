@@ -1,0 +1,6 @@
+{
+  "name": "MeethoPasal AI - मीठो पसल",
+  "description": "Mobile-first food ordering and small restaurant management system for Nepal street-food shops.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

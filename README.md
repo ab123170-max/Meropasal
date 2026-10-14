@@ -1,11 +1,88 @@
-<div align="center">
+# 🥟 MeethoPasal AI (मीठो पसल एआई)
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+> **Mobile-first Food Ordering & Street Restaurant Management App for Nepal**  
+> Designed for Android phones and small street-food shops (Chatpate, Pani Puri, Momo, Chowmein, etc.).
 
-  <h1>Built with AI Studio</h2>
+---
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## 📱 मुख्य सुविधाहरू (Features)
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+1. **ग्राहक अनलाइन अर्डर (Customer Food Ordering):**
+   - सजिलो नेपाली मेनु र परिकार खोज्ने सुविधा।
+   - भेरियन्ट चयन (सादा, गिलो, चिकेन, स्पेशल आदि)।
+   - संख्या (+ / -) र झोलामा थप्ने (Cart)।
+   - टेकअवे (पसलबाट लैजाने) वा होम डेलिभरी रोज्ने सुविधा।
+   - अर्डर भएपछि सिधै पसलको **WhatsApp** मा म्यासेज र कल गर्ने सुविधा।
+   - ग्राहकलाई एप इन्स्टल गर्न वा साइन-अप गर्न आवश्यक पर्दैन।
 
-</div>
+2. **परिकार र भेरियन्ट व्यवस्थापन (Product Variants & Recipes):**
+   - एउटै खाना (जस्तै चटपटे वा मम) को विभिन्न भेरियन्ट र फरक-फरक बिक्री मूल्य।
+   - प्रत्येक भेरियन्टमा लाग्ने कच्चा पदार्थ (आलु, प्याज, मासु, मैदा, मसला) को रेसिपी र अनुमानित लागत।
+
+3. **अर्डर व्यवस्थापन (Live Order Management):**
+   - नयाँ अर्डर आउनासाथ अलर्ट।
+   - अर्डर स्वीकार (Accept) ➔ तयार हुँदै (Preparing) ➔ तयार भयो (Ready) ➔ सम्पन्न (Completed) ➔ कारणसहित रद्द (Cancel)।
+   - अर्डर सम्पन्न हुनासाथ रेसिपी अनुसारको मौज्दात (Stock) स्वचालित रूपमा घट्छ (कुनै दोहोरो कटौती हुँदैन)।
+
+4. **हिसाब-किताब तथा नाफा (Sales, Expenses & Profit):**
+   - **कुल नाफा (Gross Profit)** = जम्मा बिक्री - बिक्री भएको खानाको कच्चा पदार्थ लागत (COGS)।
+   - **सञ्चालन नाफा (Operating Profit)** = कुल नाफा - सञ्चालन खर्च (सटर भाडा, ग्यास, बत्ती, प्याकिङ)।
+   - **घरखर्च (Household Draw)**: व्यापारिक सञ्चालन खर्च होइन, नाफाबाट झिकिएको रकमको रूपमा छुट्टै हिसाब।
+   - **गल्लामा खुद नगद प्रवाह (Net Cash Movement)** = वास्तविक उठेको नगद - वास्तविक खर्च।
+   - **उधारो खाता (Customer Credit Book)**: ग्राहकको बाँकी हिसाब र किस्ता भुक्तानी।
+
+5. **कच्चा पदार्थ मौज्दात (Ingredients & Inventory):**
+   - आलु, प्याज, चाउमिन, मासु, तेल, मैदा, मसला, प्याकेजिङ सामान।
+   - एकाइ (kg, gram, litre, ml, piece, packet)।
+   - सकिन लाग्दा चेतावनी (Low-Stock Alert) र तुरुन्तै नयाँ स्टक थप्ने (Restock) सुविधा।
+
+6. **आवाजबाट हिसाब इन्ट्री (Voice Entry):**
+   - नेपालीमा बोलेरै बिक्री वा खर्च रेकर्ड गर्ने ("आज ४००० को बिक्री भयो", "१५०० को तेल किने")।
+   - पक्का गरी सेभ गर्ने व्यवस्था (कुनै गल्ती नहोस् भनी मालिकले पुष्टि गरेपछि मात्र सेभ हुन्छ)।
+
+7. **मीठो सल्लाहकार (AI Business Advisor):**
+   - पसलको वास्तविक बिक्री र खर्च विश्लेषण।
+   - कुन परिकारमा धेरै नाफा छ, कुन कच्चा पदार्थ धेरै खर्च भइरहेको छ, र खेर जाने समस्या घटाउने उपायहरू।
+
+8. **PWA (Progressive Web App):**
+   - एन्ड्रोइड फोनको होम स्क्रिनमा सिधै एपजस्तै इन्स्टल हुन्छ।
+   - इन्टरनेट नहुँदा पनि स्थानीय डाटामा चल्ने (Offline Support)।
+
+---
+
+## 🚀 सुरु गर्ने तरिका (Getting Started)
+
+### १. स्थानीय रूपमा चलाउन (Development)
+
+```bash
+# १. डिपेन्डेन्सी इन्स्टल गर्नुहोस्
+npm install
+
+# २. लोकल सर्भर सुरु गर्नुहोस्
+npm run dev
+```
+ब्राउजरमा `http://localhost:3000` खोल्नुहोस्।
+
+---
+
+## 🗄️ डाटाबेस सेटअप (Supabase Setup - ऐच्छिक तर सिफारिस गरिएको)
+
+एपमा पहिले नै **डेमो मोड (LocalStorage)** सक्रिय छ, जसले गर्दा कुनै डाटाबेस नभए पनि तुरुन्तै चलाउन सकिन्छ। डाटालाई अनलाइन सधैं सुरक्षित राख्न:
+
+१. [Supabase.com](https://supabase.com) मा सित्तैमा नयाँ प्रोजेक्ट बनाउनुहोस्।  
+२. Supabase को **SQL Editor** मा गई `supabase/schema.sql` फाइलको सम्पूर्ण कोड पेस्ट गरी **Run** थिच्नुहोस्।  
+३. `.env` फाइलमा आफ्नो URL र Public Anon Key राख्नुहोस्:
+   ```env
+   VITE_SUPABASE_URL="https://your-project.supabase.co"
+   VITE_SUPABASE_ANON_KEY="your-anon-public-key"
+   ```
+४. सर्भर रिस्टार्ट गर्नासाथ एप क्लाउड डाटाबेसमा स्वचालित रूपमा जोडिन्छ।
+
+---
+
+## ☁️ Vercel मा डिप्लोय गर्ने तरिका (Deploy to Vercel)
+
+१. यो प्रोजेक्टलाई आफ्नो GitHub मा Push गर्नुहोस्।  
+२. [Vercel](https://vercel.com) मा गइ **Import Repository** गर्नुहोस्।  
+३. Environment Variables मा `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, र `GEMINI_API_KEY` थप्नुहोस्।  
+४. **Deploy** थिच्नुहोस्!
