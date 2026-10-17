@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { parseNepaliVoiceText, isSpeechRecognitionSupported, ParsedVoiceEntry } from '../../lib/voiceParser';
-import { addExpense, addHouseholdWithdrawal, createOrder } from '../../lib/storage';
+import { addExpense, addHouseholdWithdrawal, createDirectSale } from '../../lib/storage';
 import {
   Mic,
   MicOff,
@@ -15,12 +15,14 @@ import {
 interface VoiceEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  shopId: string;
   onEntrySaved: () => void;
 }
 
 export const VoiceEntryModal: React.FC<VoiceEntryModalProps> = ({
   isOpen,
   onClose,
+  shopId,
   onEntrySaved,
 }) => {
   const [isListening, setIsListening] = useState(false);
@@ -134,24 +136,15 @@ export const VoiceEntryModal: React.FC<VoiceEntryModalProps> = ({
 
       if (editedType === 'sale') {
         // Record as quick cash counter sale
-        await createOrder({
-          order_type: 'takeaway',
-          customer_name: 'काउन्टर ग्राहक (Voice Sale)',
-          customer_phone: '9800000000',
-          payment_method: 'cash_on_pickup',
-          items: [
-            {
-              product_id: 'quick-sale',
-              variant_id: 'quick-var',
-              item_name: editedDesc || 'काउन्टर बिक्री',
-              variant_name: 'नगद बिक्री',
-              unit_price: editedAmount,
-              quantity: 1,
-            },
-          ],
+        await createDirectSale({
+          shop_id: shopId,
+          amount: editedAmount,
+          description: editedDesc || 'काउन्टर बिक्री (Voice Sale)',
+          payment_method: 'cash',
         });
       } else if (editedType === 'expense') {
         await addExpense({
+          shop_id: shopId,
           category: (interpreted?.category as any) || 'other',
           amount: editedAmount,
           description: editedDesc || 'आवाजबाट रेकर्ड गरिएको खर्च',
@@ -159,7 +152,7 @@ export const VoiceEntryModal: React.FC<VoiceEntryModalProps> = ({
           expense_date: new Date().toISOString().split('T')[0],
         });
       } else if (editedType === 'withdrawal') {
-        await addHouseholdWithdrawal(editedAmount, editedDesc || 'व्यक्तिगत/घरखर्च');
+        await addHouseholdWithdrawal(shopId, editedAmount, editedDesc || 'व्यक्तिगत/घरखर्च');
       }
 
       onEntrySaved();

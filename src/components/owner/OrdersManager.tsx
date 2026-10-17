@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Order, OrderStatus } from '../../types';
 import { updateOrderStatus } from '../../lib/storage';
+import { supabase } from '../../lib/supabase';
 import {
   ClipboardList,
   Phone,
@@ -15,31 +16,59 @@ import {
   Filter,
   AlertCircle,
   Check,
+  RefreshCw,
 } from 'lucide-react';
 
 interface OrdersManagerProps {
+  shopId: string;
   orders: Order[];
   onOrderUpdated: () => void;
 }
 
-export const OrdersManager: React.FC<OrdersManagerProps> = ({ orders, onOrderUpdated }) => {
+export const OrdersManager: React.FC<OrdersManagerProps> = ({ shopId, orders, onOrderUpdated }) => {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'all'>('today');
   const [cancellationOrderId, setCancellationOrderId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ text: string; isError: boolean } | null>(null);
+
+  // Setup Supabase Realtime listener for orders (Phase 6 requirement)
+  useEffect(() => {
+    const client = supabase;
+    if (!client || !shopId) return;
+
+    const channel = client
+      .channel(`public:orders:${shopId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders', filter: `shop_id=eq.${shopId}` },
+        () => {
+          onOrderUpdated();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      client.removeChannel(channel);
+    };
+  }, [shopId, onOrderUpdated]);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await onOrderUpdated();
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
 
   // Filter logic
   const now = new Date();
   const filteredOrders = orders.filter((order) => {
-    // Status filter
     if (selectedStatus !== 'all' && order.status !== selectedStatus) {
       return false;
     }
 
-    // Date filter
     const orderDate = new Date(order.created_at);
     if (dateFilter === 'today' && orderDate.toDateString() !== now.toDateString()) {
       return false;
@@ -49,7 +78,6 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ orders, onOrderUpd
       if (orderDate < weekAgo) return false;
     }
 
-    // Search query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       const matchNum = order.order_number.toLowerCase().includes(q);
@@ -73,7 +101,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ orders, onOrderUpd
       }
 
       setStatusMessage({
-        text: `अर्डर स्थिति "${getStatusLabel(status)}" मा अपडेट भयो।`,
+        text: `अर्डर स्थिति "${getStatusLabel(status)}" मा सफलतापूर्वक अपडेट भयो।`,
         isError: false,
       });
 
@@ -101,6 +129,16 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ orders, onOrderUpd
     }
   };
 
+  const formatTime = (iso?: string) => {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+
   const getWhatsAppLink = (order: Order) => {
     const cleanPhone = order.customer_phone.replace(/[^0-9]/g, '');
     const fullPhone = cleanPhone.startsWith('977') ? cleanPhone : '977' + cleanPhone;
@@ -109,7 +147,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ orders, onOrderUpd
   };
 
   return (
-    <div className="max-w-md mx-auto pb-24 px-4 pt-3 space-y-3.5">
+    <div className="max-w-md mx-auto pb-24 px-4 pt-3 space-y-3.5 font-['Mukta',sans-serif]">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -120,26 +158,36 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ orders, onOrderUpd
           <p className="text-xs text-gray-500">कुल {filteredOrders.length} अर्डरहरू फेला परे</p>
         </div>
 
-        {/* Date Filter Pills */}
-        <div className="flex bg-gray-100 p-0.5 rounded-lg text-[11px] font-bold text-gray-600">
+        {/* Refresh & Date Filter Pills */}
+        <div className="flex items-center gap-1.5">
           <button
-            onClick={() => setDateFilter('today')}
-            className={`px-2 py-1 rounded-md transition ${dateFilter === 'today' ? 'bg-white text-orange-700 shadow-xs' : ''}`}
+            onClick={handleManualRefresh}
+            className="p-1.5 rounded-lg bg-gray-100 hover:bg-orange-50 text-gray-600 hover:text-orange-700 transition"
+            title="ताजा गर्नुहोस्"
           >
-            आज
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
-          <button
-            onClick={() => setDateFilter('week')}
-            className={`px-2 py-1 rounded-md transition ${dateFilter === 'week' ? 'bg-white text-orange-700 shadow-xs' : ''}`}
-          >
-            हप्ता
-          </button>
-          <button
-            onClick={() => setDateFilter('all')}
-            className={`px-2 py-1 rounded-md transition ${dateFilter === 'all' ? 'bg-white text-orange-700 shadow-xs' : ''}`}
-          >
-            सबै
-          </button>
+
+          <div className="flex bg-gray-100 p-0.5 rounded-lg text-[11px] font-bold text-gray-600">
+            <button
+              onClick={() => setDateFilter('today')}
+              className={`px-2 py-1 rounded-md transition ${dateFilter === 'today' ? 'bg-white text-orange-700 shadow-xs' : ''}`}
+            >
+              आज
+            </button>
+            <button
+              onClick={() => setDateFilter('week')}
+              className={`px-2 py-1 rounded-md transition ${dateFilter === 'week' ? 'bg-white text-orange-700 shadow-xs' : ''}`}
+            >
+              हप्ता
+            </button>
+            <button
+              onClick={() => setDateFilter('all')}
+              className={`px-2 py-1 rounded-md transition ${dateFilter === 'all' ? 'bg-white text-orange-700 shadow-xs' : ''}`}
+            >
+              सबै
+            </button>
+          </div>
         </div>
       </div>
 
@@ -183,6 +231,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ orders, onOrderUpd
         {[
           { id: 'all', label: 'सबै' },
           { id: 'pending', label: 'नयाँ (Pending)' },
+          { id: 'accepted', label: 'स्वीकार' },
           { id: 'preparing', label: 'तयार हुँदै' },
           { id: 'ready', label: 'तयार' },
           { id: 'completed', label: 'सम्पन्न' },
@@ -303,10 +352,10 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ orders, onOrderUpd
 
                 {/* Ordered Items List */}
                 <div className="mt-2.5 bg-orange-50/40 rounded-xl p-2.5 text-xs space-y-1">
-                  {order.items.map((item, idx) => (
+                  {order.items?.map((item, idx) => (
                     <div key={idx} className="flex justify-between items-center text-gray-800">
                       <span>
-                        <strong>{item.quantity}×</strong> {item.variant_name}
+                        <strong>{item.quantity}×</strong> {item.variant_name || item.item_name}
                       </span>
                       <span className="font-semibold text-gray-900">रू {item.total_price}</span>
                     </div>
@@ -321,6 +370,16 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ orders, onOrderUpd
                     <span>कुल रकम</span>
                     <span className="text-orange-600 text-sm">रू {order.total_amount}</span>
                   </div>
+                </div>
+
+                {/* Timestamps audit (Phase 6 requirement) */}
+                <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-gray-400">
+                  <span>दर्ता: {formatTime(order.created_at)}</span>
+                  {order.accepted_at && <span>• स्वीकार: {formatTime(order.accepted_at)}</span>}
+                  {order.preparing_at && <span>• तयार हुँदै: {formatTime(order.preparing_at)}</span>}
+                  {order.ready_at && <span>• तयार: {formatTime(order.ready_at)}</span>}
+                  {order.completed_at && <span>• सम्पन्न: {formatTime(order.completed_at)}</span>}
+                  {order.cancelled_at && <span>• रद्द: {formatTime(order.cancelled_at)}</span>}
                 </div>
 
                 {/* Status action buttons */}

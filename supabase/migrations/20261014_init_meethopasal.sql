@@ -1,4 +1,4 @@
 -- Migration: 20261014_init_meethopasal.sql
--- Initializes MeethoPasal AI schema, tables, indexes, and Row Level Security (RLS) policies.
+-- Initializes Meropasal / MeethoPasal AI schema, 15 tables, indexes, RLS, and secure atomic RPC procedures.
 
 \i ../schema.sql

@@ -14,11 +14,13 @@ import {
 } from 'lucide-react';
 
 interface StockManagerProps {
+  shopId: string;
   ingredients: Ingredient[];
   onStockUpdated: () => void;
 }
 
 export const StockManager: React.FC<StockManagerProps> = ({
+  shopId,
   ingredients,
   onStockUpdated,
 }) => {
@@ -67,6 +69,7 @@ export const StockManager: React.FC<StockManagerProps> = ({
   // Open new ingredient modal
   const handleOpenNewIngredient = () => {
     setEditingItem({
+      shop_id: shopId,
       name: '',
       name_ne: '',
       unit: 'kg',

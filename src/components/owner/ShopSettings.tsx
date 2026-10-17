@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Shop } from '../../types';
-import { updateShop, initLocalStorageDemo } from '../../lib/storage';
+import { updateShop } from '../../lib/storage';
 import { isSupabaseConfigured, getSupabaseConfigStatus } from '../../lib/supabase';
 import {
   Settings,
@@ -12,7 +12,7 @@ import {
   AlertCircle,
   Copy,
   ExternalLink,
-  RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
 
 interface ShopSettingsProps {
@@ -32,23 +32,19 @@ export const ShopSettings: React.FC<ShopSettingsProps> = ({ shop, onShopUpdated 
     e.preventDefault();
     try {
       setIsSaving(true);
-      await updateShop(formData);
+      await updateShop(shop.id, formData);
       setSuccessMsg('पसल सेटिङ सुरक्षित गरियो!');
       setTimeout(() => setSuccessMsg(''), 3000);
       onShopUpdated();
     } catch (err: any) {
-      alert('सेटिङ सेभ गर्न असफल भयो।');
+      alert(err.message || 'सेटिङ सेभ गर्न असफल भयो।');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleResetDemoData = () => {
-    if (window.confirm('के तपाईं डेमो डाटा रिसेट गर्न चाहनुहुन्छ? सबै नयाँ अर्डर र हिसाब सुरुवाती अवस्थामा फर्किनेछ।')) {
-      localStorage.clear();
-      initLocalStorageDemo();
-      window.location.reload();
-    }
+  const handleRefresh = () => {
+    onShopUpdated();
   };
 
   return (
@@ -289,15 +285,15 @@ export const ShopSettings: React.FC<ShopSettingsProps> = ({ shop, onShopUpdated 
         </button>
       </form>
 
-      {/* Reset Demo Data Button */}
+      {/* Refresh Data Button */}
       <div className="pt-2">
         <button
           type="button"
-          onClick={handleResetDemoData}
-          className="w-full py-2.5 px-3 rounded-xl border border-gray-300 bg-white hover:bg-rose-50 text-gray-600 hover:text-rose-700 text-xs font-bold flex items-center justify-center gap-1.5 transition"
+          onClick={handleRefresh}
+          className="w-full py-2.5 px-3 rounded-xl border border-gray-300 bg-white hover:bg-orange-50 text-gray-700 hover:text-orange-700 text-xs font-bold flex items-center justify-center gap-1.5 transition"
         >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>सुरुवाती डेमो डाटा रिसेट गर्नुहोस् (Reset Demo Data)</span>
+          <RefreshCw className="w-3.5 h-3.5" />
+          <span>डाटाबेसबाट पुनः ताजा गर्नुहोस् (Sync & Refresh)</span>
         </button>
       </div>
     </div>

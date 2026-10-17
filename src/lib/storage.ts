@@ -4,7 +4,6 @@ import {
   Product,
   ProductVariant,
   Ingredient,
-  Recipe,
   Order,
   OrderItem,
   Expense,
@@ -12,454 +11,418 @@ import {
   CustomerCredit,
   FinancialMetrics,
   OrderStatus,
+  RecipeItem,
+  LpgCylinder,
 } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
-const STORAGE_KEYS = {
-  SHOP: 'meethopasal_shop',
-  CATEGORIES: 'meethopasal_categories',
-  PRODUCTS: 'meethopasal_products',
-  VARIANTS: 'meethopasal_variants',
-  INGREDIENTS: 'meethopasal_ingredients',
-  RECIPES: 'meethopasal_recipes',
-  ORDERS: 'meethopasal_orders',
-  EXPENSES: 'meethopasal_expenses',
-  WITHDRAWALS: 'meethopasal_withdrawals',
-  CREDITS: 'meethopasal_credits',
-  INITIALIZED: 'meethopasal_seed_initialized_v2',
-};
-
-// Initial realistic Nepali street-food shop seed data
-const DEFAULT_SHOP: Shop = {
-  id: 'shop-ktm-001',
-  slug: 'mamako-chatpate',
-  name: "Mama's Momo & Chatpate Center",
-  name_ne: 'मामाको मम तथा चटपटे सेन्टर',
-  tagline: 'काठमाडौँको प्रख्यात स्वादिलो चटपटे, पानीपुरी र तात्तातो मम!',
-  phone: '9841234567',
-  whatsapp_number: '9779841234567',
-  address: 'Basantapur Chowk, Kathmandu',
-  city: 'Kathmandu',
-  is_open: true,
-  is_delivery_enabled: true,
-  delivery_fee: 50,
-  min_order_for_delivery: 150,
-  is_takeaway_enabled: true,
-  is_online_payment_enabled: true,
-  online_payment_qr_url: 'https://images.unsplash.com/photo-1595079672139-54710474aa04?auto=format&fit=crop&w=400&q=80',
-  online_payment_instructions: 'eSewa वा Khalti बाट QR स्क्यान गरी अर्डर नम्बर लेखेर पठाउनुहोस्।',
-  created_at: new Date().toISOString(),
-};
-
-const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat-1', shop_id: 'shop-ktm-001', name: 'Chatpate & Pani Puri', name_ne: 'चटपटे र पानीपुरी', sort_order: 1, is_active: true },
-  { id: 'cat-2', shop_id: 'shop-ktm-001', name: 'Steaming Momo', name_ne: 'तातो मम', sort_order: 2, is_active: true },
-  { id: 'cat-3', shop_id: 'shop-ktm-001', name: 'Chowmein & Khaja', name_ne: 'चाउमिन र खाजा', sort_order: 3, is_active: true },
-  { id: 'cat-4', shop_id: 'shop-ktm-001', name: 'Tea & Cold Drinks', name_ne: 'चिया र पेय पदार्थ', sort_order: 4, is_active: true },
-];
-
-const DEFAULT_INGREDIENTS: Ingredient[] = [
-  { id: 'ing-1', shop_id: 'shop-ktm-001', name: 'Potatoes (आलु)', name_ne: 'आलु', unit: 'kg', quantity_available: 18.5, purchase_cost_per_unit: 45, min_threshold: 5, updated_at: new Date().toISOString() },
-  { id: 'ing-2', shop_id: 'shop-ktm-001', name: 'Onions (प्याज)', name_ne: 'प्याज', unit: 'kg', quantity_available: 12.0, purchase_cost_per_unit: 80, min_threshold: 4, updated_at: new Date().toISOString() },
-  { id: 'ing-3', shop_id: 'shop-ktm-001', name: 'Chicken (कुखुराको मासु)', name_ne: 'कुखुराको मासु', unit: 'kg', quantity_available: 4.5, purchase_cost_per_unit: 340, min_threshold: 3, updated_at: new Date().toISOString() },
-  { id: 'ing-4', shop_id: 'shop-ktm-001', name: 'Cooking Oil (तोरीको तेल)', name_ne: 'तोरीको तेल', unit: 'litre', quantity_available: 8.0, purchase_cost_per_unit: 260, min_threshold: 3, updated_at: new Date().toISOString() },
-  { id: 'ing-5', shop_id: 'shop-ktm-001', name: 'Puffed Rice (भुजा/मुरै)', name_ne: 'भुजा', unit: 'kg', quantity_available: 7.0, purchase_cost_per_unit: 90, min_threshold: 2, updated_at: new Date().toISOString() },
-  { id: 'ing-6', shop_id: 'shop-ktm-001', name: 'Flour (मैदा/आटा)', name_ne: 'मैदा', unit: 'kg', quantity_available: 15.0, purchase_cost_per_unit: 75, min_threshold: 5, updated_at: new Date().toISOString() },
-  { id: 'ing-7', shop_id: 'shop-ktm-001', name: 'Chowmein Noodles (चाउमिन)', name_ne: 'काँचो चाउमिन', unit: 'kg', quantity_available: 9.0, purchase_cost_per_unit: 110, min_threshold: 3, updated_at: new Date().toISOString() },
-  { id: 'ing-8', shop_id: 'shop-ktm-001', name: 'Spices Mix (चटपटे मसला/धनिया)', name_ne: 'मसला र खुर्सानी', unit: 'packet', quantity_available: 14.0, purchase_cost_per_unit: 35, min_threshold: 5, updated_at: new Date().toISOString() },
-  { id: 'ing-9', shop_id: 'shop-ktm-001', name: 'Takeaway Box & Bag (प्याकिङ सामान)', name_ne: 'प्याकेजिङ बक्स', unit: 'piece', quantity_available: 65, purchase_cost_per_unit: 8, min_threshold: 20, updated_at: new Date().toISOString() },
-];
-
-const DEFAULT_PRODUCTS: Product[] = [
-  {
-    id: 'prod-1',
-    shop_id: 'shop-ktm-001',
-    category_id: 'cat-1',
-    name: 'Special Chatpate',
-    name_ne: 'चटपटे',
-    description: 'भुजा, आलु, प्याज, चना, कागती र स्पेशल मसला मिसाइएको कुरकुरे नेपाली स्वाद।',
-    image_url: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=600&q=80',
-    is_active: true,
-    sort_order: 1,
-  },
-  {
-    id: 'prod-2',
-    shop_id: 'shop-ktm-001',
-    category_id: 'cat-1',
-    name: 'Crispy Pani Puri',
-    name_ne: 'पानीपुरी',
-    description: 'क्रन्ची पुरीमा पिरो-अमिलो पुदिना र जिरा पानीको उत्कृष्ट स्वाद।',
-    image_url: 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=600&q=80',
-    is_active: true,
-    sort_order: 2,
-  },
-  {
-    id: 'prod-3',
-    shop_id: 'shop-ktm-001',
-    category_id: 'cat-2',
-    name: 'Steamed & Jhol Momo',
-    name_ne: 'मम (Momo)',
-    description: 'घरमा हातले बनाइएको स्वादिलो किमा र स्पेशल तिल-टमाटरको अचार/झोल।',
-    image_url: 'https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=600&q=80',
-    is_active: true,
-    sort_order: 3,
-  },
-  {
-    id: 'prod-4',
-    shop_id: 'shop-ktm-001',
-    category_id: 'cat-3',
-    name: 'Nepali Street Chowmein',
-    name_ne: 'चाउमिन',
-    description: 'तातो कराहीमा भुटिएको ताजा तरकारी र चिकेनसहितको चाउमिन।',
-    image_url: 'https://images.unsplash.com/photo-1612927601601-6638404737ce?auto=format&fit=crop&w=600&q=80',
-    is_active: true,
-    sort_order: 4,
-  },
-  {
-    id: 'prod-5',
-    shop_id: 'shop-ktm-001',
-    category_id: 'cat-4',
-    name: 'Masala Milk Tea',
-    name_ne: 'स्पेशल मसला चिया',
-    description: 'ल्वाङ, सुकमेल, अदुवा र ताजा दूध हालेर पकाइएको तातो चिया।',
-    image_url: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80',
-    is_active: true,
-    sort_order: 5,
-  },
-];
-
-const DEFAULT_VARIANTS: ProductVariant[] = [
-  // Chatpate variants
-  { id: 'var-1', shop_id: 'shop-ktm-001', product_id: 'prod-1', name: 'Sada Chatpate', name_ne: 'सादा चटपटे', price: 60, estimated_cost: 16, is_available: true, sort_order: 1 },
-  { id: 'var-2', shop_id: 'shop-ktm-001', product_id: 'prod-1', name: 'Gilo Chatpate', name_ne: 'गिलो चटपटे (स्पेशल झोल)', price: 70, estimated_cost: 18, is_available: true, sort_order: 2 },
-  { id: 'var-3', shop_id: 'shop-ktm-001', product_id: 'prod-1', name: 'Chicken Chatpate', name_ne: 'चिकेन चटपटे', price: 110, estimated_cost: 38, is_available: true, sort_order: 3 },
-  { id: 'var-4', shop_id: 'shop-ktm-001', product_id: 'prod-1', name: 'Special Dry Fruits Chatpate', name_ne: 'स्पेशल बदाम/ड्राईफ्रूट चटपटे', price: 120, estimated_cost: 42, is_available: true, sort_order: 4 },
-
-  // Pani Puri variants
-  { id: 'var-5', shop_id: 'shop-ktm-001', product_id: 'prod-2', name: 'Regular Pani Puri (8 pcs)', name_ne: 'साधारण पानीपुरी (८ पिस)', price: 60, estimated_cost: 15, is_available: true, sort_order: 1 },
-  { id: 'var-6', shop_id: 'shop-ktm-001', product_id: 'prod-2', name: 'Dahi Puri (6 pcs)', name_ne: 'दही पुरी (६ पिस)', price: 100, estimated_cost: 28, is_available: true, sort_order: 2 },
-
-  // Momo variants
-  { id: 'var-7', shop_id: 'shop-ktm-001', product_id: 'prod-3', name: 'Veg Steam Momo (10 pcs)', name_ne: 'भेज स्टिम मम (१० पिस)', price: 110, estimated_cost: 32, is_available: true, sort_order: 1 },
-  { id: 'var-8', shop_id: 'shop-ktm-001', product_id: 'prod-3', name: 'Chicken Steam Momo (10 pcs)', name_ne: 'चिकेन स्टिम मम (१० पिस)', price: 160, estimated_cost: 58, is_available: true, sort_order: 2 },
-  { id: 'var-9', shop_id: 'shop-ktm-001', product_id: 'prod-3', name: 'Chicken Fried Momo (10 pcs)', name_ne: 'चिकेन फ्राइड मम (१० पिस)', price: 180, estimated_cost: 68, is_available: true, sort_order: 3 },
-  { id: 'var-10', shop_id: 'shop-ktm-001', product_id: 'prod-3', name: 'Chicken Jhol Momo (10 pcs)', name_ne: 'चिकेन झोल मम (१० पिस)', price: 190, estimated_cost: 72, is_available: true, sort_order: 4 },
-
-  // Chowmein variants
-  { id: 'var-11', shop_id: 'shop-ktm-001', product_id: 'prod-4', name: 'Veg Chowmein', name_ne: 'भेज चाउमिन', price: 100, estimated_cost: 28, is_available: true, sort_order: 1 },
-  { id: 'var-12', shop_id: 'shop-ktm-001', product_id: 'prod-4', name: 'Chicken Chowmein', name_ne: 'चिकेन चाउमिन', price: 160, estimated_cost: 55, is_available: true, sort_order: 2 },
-
-  // Tea
-  { id: 'var-13', shop_id: 'shop-ktm-001', product_id: 'prod-5', name: 'Full Cup Masala Tea', name_ne: 'स्पेशल कप मसला चिया', price: 30, estimated_cost: 9, is_available: true, sort_order: 1 },
-];
-
-// Recipes mapping
-const DEFAULT_RECIPES: Recipe[] = [
-  // Sada Chatpate -> Puffed rice, onion, potato, spices
-  { id: 'rec-1', shop_id: 'shop-ktm-001', variant_id: 'var-1', ingredient_id: 'ing-5', quantity_needed: 0.08 }, // 80g bhuja
-  { id: 'rec-2', shop_id: 'shop-ktm-001', variant_id: 'var-1', ingredient_id: 'ing-2', quantity_needed: 0.04 }, // 40g onion
-  { id: 'rec-3', shop_id: 'shop-ktm-001', variant_id: 'var-1', ingredient_id: 'ing-1', quantity_needed: 0.05 }, // 50g potato
-  { id: 'rec-4', shop_id: 'shop-ktm-001', variant_id: 'var-1', ingredient_id: 'ing-8', quantity_needed: 0.1 },  // spices packet
-  // Chicken Chatpate
-  { id: 'rec-5', shop_id: 'shop-ktm-001', variant_id: 'var-3', ingredient_id: 'ing-5', quantity_needed: 0.08 },
-  { id: 'rec-6', shop_id: 'shop-ktm-001', variant_id: 'var-3', ingredient_id: 'ing-3', quantity_needed: 0.06 }, // 60g chicken
-  { id: 'rec-7', shop_id: 'shop-ktm-001', variant_id: 'var-3', ingredient_id: 'ing-2', quantity_needed: 0.04 },
-  // Chicken Steam Momo
-  { id: 'rec-8', shop_id: 'shop-ktm-001', variant_id: 'var-8', ingredient_id: 'ing-3', quantity_needed: 0.12 }, // 120g chicken
-  { id: 'rec-9', shop_id: 'shop-ktm-001', variant_id: 'var-8', ingredient_id: 'ing-2', quantity_needed: 0.05 }, // 50g onion
-  { id: 'rec-10', shop_id: 'shop-ktm-001', variant_id: 'var-8', ingredient_id: 'ing-6', quantity_needed: 0.10 }, // 100g flour
-];
-
-const DEFAULT_ORDERS: Order[] = [
-  {
-    id: 'ord-101',
-    shop_id: 'shop-ktm-001',
-    order_number: 'MP-101',
-    order_type: 'takeaway',
-    customer_name: 'Bikash Shrestha',
-    customer_phone: '9801234567',
-    status: 'pending',
-    subtotal: 350,
-    delivery_fee: 0,
-    discount: 0,
-    total_amount: 350,
-    payment_method: 'cash_on_pickup',
-    payment_status: 'pending',
-    inventory_deducted: false,
-    estimated_ingredient_cost: 110,
-    created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    items: [
-      { id: 'item-1', order_id: 'ord-101', shop_id: 'shop-ktm-001', product_id: 'prod-3', variant_id: 'var-8', item_name: 'Steamed & Jhol Momo', variant_name: 'Chicken Steam Momo (10 pcs)', unit_price: 160, quantity: 1, total_price: 160 },
-      { id: 'item-2', order_id: 'ord-101', shop_id: 'shop-ktm-001', product_id: 'prod-3', variant_id: 'var-10', item_name: 'Steamed & Jhol Momo', variant_name: 'Chicken Jhol Momo (10 pcs)', unit_price: 190, quantity: 1, total_price: 190 },
-    ],
-  },
-  {
-    id: 'ord-102',
-    shop_id: 'shop-ktm-001',
-    order_number: 'MP-102',
-    order_type: 'delivery',
-    customer_name: 'Anita Gurung',
-    customer_phone: '9847123987',
-    delivery_address: 'New Road, Near Pipal Bot, Flat 2B',
-    customer_notes: 'अलि बढी पिरो र अमिलो बनाइदिनुहोला।',
-    status: 'preparing',
-    subtotal: 230,
-    delivery_fee: 50,
-    discount: 0,
-    total_amount: 280,
-    payment_method: 'cash_on_delivery',
-    payment_status: 'pending',
-    inventory_deducted: false,
-    estimated_ingredient_cost: 56,
-    created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-    items: [
-      { id: 'item-3', order_id: 'ord-102', shop_id: 'shop-ktm-001', product_id: 'prod-1', variant_id: 'var-3', item_name: 'Special Chatpate', variant_name: 'Chicken Chatpate', unit_price: 110, quantity: 1, total_price: 110 },
-      { id: 'item-4', order_id: 'ord-102', shop_id: 'shop-ktm-001', product_id: 'prod-2', variant_id: 'var-5', item_name: 'Crispy Pani Puri', variant_name: 'Regular Pani Puri (8 pcs)', unit_price: 60, quantity: 2, total_price: 120 },
-    ],
-  },
-  {
-    id: 'ord-103',
-    shop_id: 'shop-ktm-001',
-    order_number: 'MP-103',
-    order_type: 'dine_in',
-    table_number: '3',
-    customer_name: 'Ramesh Thapa',
-    customer_phone: '9812984512',
-    status: 'completed',
-    subtotal: 420,
-    delivery_fee: 0,
-    discount: 0,
-    total_amount: 420,
-    payment_method: 'online_qr',
-    payment_status: 'paid',
-    inventory_deducted: true,
-    estimated_ingredient_cost: 135,
-    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    items: [
-      { id: 'item-5', order_id: 'ord-103', shop_id: 'shop-ktm-001', product_id: 'prod-4', variant_id: 'var-12', item_name: 'Nepali Street Chowmein', variant_name: 'Chicken Chowmein', unit_price: 160, quantity: 2, total_price: 320 },
-      { id: 'item-6', order_id: 'ord-103', shop_id: 'shop-ktm-001', product_id: 'prod-2', variant_id: 'var-6', item_name: 'Crispy Pani Puri', variant_name: 'Dahi Puri (6 pcs)', unit_price: 100, quantity: 1, total_price: 100 },
-    ],
-  },
-];
-
-const DEFAULT_EXPENSES: Expense[] = [
-  { id: 'exp-1', shop_id: 'shop-ktm-001', category: 'gas_electricity', category_ne: 'ग्यास र बत्ती', amount: 1900, payment_method: 'cash', description: 'सुगम ग्यास सिलिन्डर १ थान', expense_date: new Date().toISOString().split('T')[0], created_at: new Date().toISOString() },
-  { id: 'exp-2', shop_id: 'shop-ktm-001', category: 'packaging', category_ne: 'प्याकेजिङ', amount: 480, payment_method: 'cash', description: 'टेकअवे बक्स ५० वटा र प्लास्टिक झोला', expense_date: new Date().toISOString().split('T')[0], created_at: new Date().toISOString() },
-  { id: 'exp-3', shop_id: 'shop-ktm-001', category: 'rent', category_ne: 'पसल सटर भाडा', amount: 8000, payment_method: 'bank', description: 'साप्ताहिक सटर भाडा किस्ता', expense_date: new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0], created_at: new Date().toISOString() },
-];
-
-const DEFAULT_WITHDRAWALS: HouseholdWithdrawal[] = [
-  { id: 'wth-1', shop_id: 'shop-ktm-001', amount: 800, reason: 'घरको तरकारी र नानीको दूध खर्च', withdrawal_date: new Date().toISOString().split('T')[0], created_at: new Date().toISOString() },
-];
-
-const DEFAULT_CREDITS: CustomerCredit[] = [
-  {
-    id: 'crd-1',
-    shop_id: 'shop-ktm-001',
-    customer_name: 'Suresh Dai (Pharmacy)',
-    customer_phone: '9841009988',
-    credit_amount: 320,
-    paid_amount: 100,
-    remaining_amount: 220,
-    status: 'partially_paid',
-    due_date: new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0],
-    notes: '२ प्लेट मम र १ बोतल पानी',
-    created_at: new Date().toISOString(),
-  },
-];
-
-// Initialize LocalStorage with default seeds if empty
-export function initLocalStorageDemo() {
-  if (typeof window === 'undefined') return;
-
-  const isInitialized = localStorage.getItem(STORAGE_KEYS.INITIALIZED);
-  if (!isInitialized) {
-    localStorage.setItem(STORAGE_KEYS.SHOP, JSON.stringify(DEFAULT_SHOP));
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(DEFAULT_CATEGORIES));
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(DEFAULT_PRODUCTS));
-    localStorage.setItem(STORAGE_KEYS.VARIANTS, JSON.stringify(DEFAULT_VARIANTS));
-    localStorage.setItem(STORAGE_KEYS.INGREDIENTS, JSON.stringify(DEFAULT_INGREDIENTS));
-    localStorage.setItem(STORAGE_KEYS.RECIPES, JSON.stringify(DEFAULT_RECIPES));
-    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(DEFAULT_ORDERS));
-    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(DEFAULT_EXPENSES));
-    localStorage.setItem(STORAGE_KEYS.WITHDRAWALS, JSON.stringify(DEFAULT_WITHDRAWALS));
-    localStorage.setItem(STORAGE_KEYS.CREDITS, JSON.stringify(DEFAULT_CREDITS));
-    localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
+export class DatabaseError extends Error {
+  constructor(message: string, public originalError?: any) {
+    super(message);
+    this.name = 'DatabaseError';
   }
 }
 
-// Ensure demo data is loaded
-initLocalStorageDemo();
-
-// Helper to read from local storage safely
-function getLocalItem<T>(key: string, defaultValue: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : defaultValue;
-  } catch (e) {
-    console.error(`Error reading ${key} from localStorage:`, e);
-    return defaultValue;
+function ensureSupabase() {
+  if (!isSupabaseConfigured() || !supabase) {
+    throw new DatabaseError(
+      'Supabase क्लाउड डाटाबेस जडान भएको छैन। कृपया .env मा VITE_SUPABASE_URL र VITE_SUPABASE_ANON_KEY कन्फिगर गर्नुहोस्।'
+    );
   }
-}
-
-function setLocalItem<T>(key: string, value: T): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {
-    console.error(`Error saving ${key} to localStorage:`, e);
-  }
+  return supabase;
 }
 
 // -------------------------------------------------------------
-// REPOSITORY METHODS (Transparent fallback to LocalStorage if Supabase unavailable)
+// 1. SHOPS & MEMBERS
 // -------------------------------------------------------------
 
-export async function getShop(): Promise<Shop> {
-  if (isSupabaseConfigured() && supabase) {
-    const { data, error } = await supabase.from('shops').select('*').limit(1).single();
-    if (!error && data) return data as Shop;
+export async function getShop(shopIdOrSlug?: string): Promise<Shop | null> {
+  const sb = ensureSupabase();
+
+  let query = sb.from('shops').select('*');
+  if (shopIdOrSlug) {
+    query = query.or(`id.eq.${shopIdOrSlug},slug.eq.${shopIdOrSlug}`);
   }
-  return getLocalItem<Shop>(STORAGE_KEYS.SHOP, DEFAULT_SHOP);
+
+  const { data, error } = await query.order('created_at', { ascending: true }).limit(1).maybeSingle();
+
+  if (error) {
+    console.error('Error fetching shop:', error);
+    throw new DatabaseError(`पसल विवरण तान्न सकिएन: ${error.message}`, error);
+  }
+
+  return (data as Shop) || null;
 }
 
-export async function updateShop(updated: Partial<Shop>): Promise<Shop> {
-  if (isSupabaseConfigured() && supabase) {
-    const current = await getShop();
-    const { data, error } = await supabase
-      .from('shops')
-      .update(updated)
-      .eq('id', current.id)
+export async function getUserShop(userId: string): Promise<Shop | null> {
+  const sb = ensureSupabase();
+
+  const { data, error } = await sb
+    .from('shop_members')
+    .select('shop:shops(*)')
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching user shop:', error);
+    return null;
+  }
+
+  return (data?.shop as unknown as Shop) || null;
+}
+
+export async function createShop(shopData: {
+  name: string;
+  name_ne?: string;
+  phone: string;
+  address: string;
+  city?: string;
+  owner_id: string;
+}): Promise<Shop> {
+  const sb = ensureSupabase();
+
+  const slug = `${shopData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.random().toString(36).substring(2, 7)}`;
+
+  const { data, error } = await sb
+    .from('shops')
+    .insert({
+      name: shopData.name.trim(),
+      name_ne: shopData.name_ne?.trim() || shopData.name.trim(),
+      slug,
+      owner_id: shopData.owner_id,
+      phone: shopData.phone.trim(),
+      address: shopData.address.trim(),
+      city: shopData.city?.trim() || 'Kathmandu',
+      is_open: true,
+      is_delivery_enabled: true,
+      delivery_fee: 50.00,
+      min_order_for_delivery: 150.00,
+      is_takeaway_enabled: true,
+    })
+    .select()
+    .single();
+
+  if (error || !data) {
+    throw new DatabaseError(`पसल दर्ता गर्न सकिएन: ${error?.message}`, error);
+  }
+
+  // Grant owner role in shop_members
+  await sb.from('shop_members').insert({
+    shop_id: data.id,
+    user_id: shopData.owner_id,
+    role: 'owner',
+  });
+
+  return data as Shop;
+}
+
+export async function updateShop(shopId: string, updated: Partial<Shop>): Promise<Shop> {
+  const sb = ensureSupabase();
+
+  const { data, error } = await sb
+    .from('shops')
+    .update({
+      ...updated,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', shopId)
+    .select()
+    .single();
+
+  if (error || !data) {
+    throw new DatabaseError(`पसल अपडेट गर्न सकिएन: ${error?.message}`, error);
+  }
+
+  return data as Shop;
+}
+
+// -------------------------------------------------------------
+// 2. CATEGORIES
+// -------------------------------------------------------------
+
+export async function getCategories(shopId: string): Promise<Category[]> {
+  const sb = ensureSupabase();
+
+  const { data, error } = await sb
+    .from('categories')
+    .select('*')
+    .eq('shop_id', shopId)
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+
+  if (error) {
+    throw new DatabaseError(`क्याटेगोरी सूची लोड हुन सकेन: ${error.message}`, error);
+  }
+
+  return (data || []) as Category[];
+}
+
+export async function saveCategory(category: {
+  id?: string;
+  shop_id: string;
+  name: string;
+  name_ne?: string;
+  sort_order?: number;
+}): Promise<Category> {
+  const sb = ensureSupabase();
+
+  if (category.id) {
+    const { data, error } = await sb
+      .from('categories')
+      .update({
+        name: category.name.trim(),
+        name_ne: category.name_ne?.trim() || category.name.trim(),
+        sort_order: category.sort_order ?? 0,
+      })
+      .eq('id', category.id)
       .select()
       .single();
-    if (!error && data) return data as Shop;
+
+    if (error || !data) throw new DatabaseError(`क्याटेगोरी अपडेट भएन: ${error?.message}`, error);
+    return data as Category;
+  } else {
+    const { data, error } = await sb
+      .from('categories')
+      .insert({
+        shop_id: category.shop_id,
+        name: category.name.trim(),
+        name_ne: category.name_ne?.trim() || category.name.trim(),
+        sort_order: category.sort_order ?? 0,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (error || !data) throw new DatabaseError(`नयाँ क्याटेगोरी थप्न सकिएन: ${error?.message}`, error);
+    return data as Category;
   }
-  const current = getLocalItem<Shop>(STORAGE_KEYS.SHOP, DEFAULT_SHOP);
-  const next = { ...current, ...updated, updated_at: new Date().toISOString() };
-  setLocalItem(STORAGE_KEYS.SHOP, next);
-  return next;
 }
 
-export async function getCategories(): Promise<Category[]> {
-  if (isSupabaseConfigured() && supabase) {
-    const { data, error } = await supabase.from('categories').select('*').order('sort_order', { ascending: true });
-    if (!error && data && data.length > 0) return data as Category[];
-  }
-  return getLocalItem<Category[]>(STORAGE_KEYS.CATEGORIES, DEFAULT_CATEGORIES);
+// -------------------------------------------------------------
+// 3. PRODUCTS & VARIANTS (Phase 4)
+// -------------------------------------------------------------
+
+export async function getProductsWithVariants(shopId: string): Promise<Product[]> {
+  const sb = ensureSupabase();
+
+  // Fetch products
+  const { data: pData, error: pError } = await sb
+    .from('products')
+    .select('*')
+    .eq('shop_id', shopId)
+    .eq('is_archived', false)
+    .order('sort_order', { ascending: true });
+
+  if (pError) throw new DatabaseError(`खानाको सूची तान्न सकिएन: ${pError.message}`, pError);
+
+  if (!pData || pData.length === 0) return [];
+
+  // Fetch variants
+  const { data: vData, error: vError } = await sb
+    .from('product_variants')
+    .select('*')
+    .eq('shop_id', shopId)
+    .eq('is_archived', false)
+    .order('sort_order', { ascending: true });
+
+  if (vError) throw new DatabaseError(`भेरियन्ट सूची लोड भएन: ${vError.message}`, vError);
+
+  const variants = (vData || []) as ProductVariant[];
+
+  return pData.map((prod) => ({
+    ...prod,
+    variants: variants.filter((v) => v.product_id === prod.id),
+  })) as Product[];
 }
 
-export async function getProductsWithVariants(): Promise<Product[]> {
-  let products: Product[] = [];
-  let variants: ProductVariant[] = [];
+export async function saveProductWithVariants(
+  product: Partial<Product>,
+  variants: Array<{
+    id?: string;
+    name: string;
+    name_ne?: string;
+    price: number;
+    estimated_cost?: number;
+    is_available?: boolean;
+    sort_order?: number;
+    recipes?: RecipeItem[];
+  }>
+): Promise<Product> {
+  const sb = ensureSupabase();
 
-  if (isSupabaseConfigured() && supabase) {
-    const { data: pData } = await supabase.from('products').select('*').order('sort_order', { ascending: true });
-    const { data: vData } = await supabase.from('product_variants').select('*').order('sort_order', { ascending: true });
-    if (pData && pData.length > 0) {
-      products = pData as Product[];
-      variants = (vData || []) as ProductVariant[];
+  let savedProduct: Product;
+
+  if (product.id) {
+    const { data, error } = await sb
+      .from('products')
+      .update({
+        name: product.name?.trim(),
+        name_ne: product.name_ne?.trim() || product.name?.trim(),
+        category_id: product.category_id || null,
+        description: product.description?.trim() || '',
+        image_url: product.image_url,
+        is_active: product.is_active ?? true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', product.id)
+      .select()
+      .single();
+
+    if (error || !data) throw new DatabaseError(`परिकार अपडेट भएन: ${error?.message}`, error);
+    savedProduct = data as Product;
+  } else {
+    const { data, error } = await sb
+      .from('products')
+      .insert({
+        shop_id: product.shop_id,
+        category_id: product.category_id || null,
+        name: product.name!.trim(),
+        name_ne: product.name_ne?.trim() || product.name!.trim(),
+        description: product.description?.trim() || '',
+        image_url: product.image_url,
+        is_active: product.is_active ?? true,
+        is_archived: false,
+        sort_order: product.sort_order ?? 0,
+      })
+      .select()
+      .single();
+
+    if (error || !data) throw new DatabaseError(`नयाँ परिकार थप्न सकिएन: ${error?.message}`, error);
+    savedProduct = data as Product;
+  }
+
+  // Handle variants
+  const savedVariants: ProductVariant[] = [];
+
+  for (let i = 0; i < variants.length; i++) {
+    const v = variants[i];
+    if (v.id) {
+      const { data, error } = await sb
+        .from('product_variants')
+        .update({
+          name: v.name.trim(),
+          name_ne: v.name_ne?.trim() || v.name.trim(),
+          price: v.price,
+          estimated_cost: v.estimated_cost ?? 0,
+          is_available: v.is_available ?? true,
+          sort_order: i + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', v.id)
+        .select()
+        .single();
+
+      if (!error && data) savedVariants.push(data as ProductVariant);
+    } else {
+      const { data, error } = await sb
+        .from('product_variants')
+        .insert({
+          shop_id: savedProduct.shop_id,
+          product_id: savedProduct.id,
+          name: v.name.trim(),
+          name_ne: v.name_ne?.trim() || v.name.trim(),
+          price: v.price,
+          estimated_cost: v.estimated_cost ?? 0,
+          is_available: v.is_available ?? true,
+          is_archived: false,
+          sort_order: i + 1,
+        })
+        .select()
+        .single();
+
+      if (!error && data) savedVariants.push(data as ProductVariant);
     }
   }
 
-  if (products.length === 0) {
-    products = getLocalItem<Product[]>(STORAGE_KEYS.PRODUCTS, DEFAULT_PRODUCTS);
-    variants = getLocalItem<ProductVariant[]>(STORAGE_KEYS.VARIANTS, DEFAULT_VARIANTS);
-  }
-
-  // Nest variants into products
-  return products.map((prod) => ({
-    ...prod,
-    variants: variants.filter((v) => v.product_id === prod.id),
-  }));
+  savedProduct.variants = savedVariants;
+  return savedProduct;
 }
 
-export async function saveProduct(product: Partial<Product>, variants: Partial<ProductVariant>[]): Promise<Product> {
-  const currentProducts = getLocalItem<Product[]>(STORAGE_KEYS.PRODUCTS, DEFAULT_PRODUCTS);
-  const currentVariants = getLocalItem<ProductVariant[]>(STORAGE_KEYS.VARIANTS, DEFAULT_VARIANTS);
+export async function deleteProduct(productId: string): Promise<{ success: boolean; archived: boolean }> {
+  const sb = ensureSupabase();
 
-  let targetProduct: Product;
-  let updatedProducts: Product[];
+  // Phase 4: Do not allow deleting products referenced by historical orders. Archive instead.
+  const { count, error: countErr } = await sb
+    .from('order_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('product_id', productId);
 
-  if (product.id) {
-    targetProduct = { ...currentProducts.find(p => p.id === product.id)!, ...product } as Product;
-    updatedProducts = currentProducts.map(p => (p.id === product.id ? targetProduct : p));
-  } else {
-    targetProduct = {
-      id: `prod-${Date.now()}`,
-      shop_id: product.shop_id || 'shop-ktm-001',
-      name: product.name || 'नयाँ परिकार',
-      name_ne: product.name_ne || product.name || 'नयाँ परिकार',
-      category_id: product.category_id,
-      description: product.description || '',
-      image_url: product.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80',
-      is_active: product.is_active ?? true,
-      sort_order: (currentProducts.length + 1),
-    };
-    updatedProducts = [targetProduct, ...currentProducts];
+  if (count && count > 0) {
+    // Has historical order references -> soft delete / archive
+    const { error } = await sb
+      .from('products')
+      .update({ is_archived: true, is_active: false })
+      .eq('id', productId);
+
+    if (error) throw new DatabaseError(`परिकार अभिलेख गर्न सकिएन: ${error.message}`, error);
+    return { success: true, archived: true };
   }
 
-  // Save product
-  setLocalItem(STORAGE_KEYS.PRODUCTS, updatedProducts);
+  // Not referenced -> hard delete
+  const { error } = await sb.from('products').delete().eq('id', productId);
+  if (error) throw new DatabaseError(`परिकार मेटाउन सकिएन: ${error.message}`, error);
 
-  // Update or insert variants
-  const remainingVariants = currentVariants.filter(v => v.product_id !== targetProduct.id);
-  const savedVariants: ProductVariant[] = variants.map((v, idx) => ({
-    id: v.id || `var-${Date.now()}-${idx}`,
-    shop_id: targetProduct.shop_id,
-    product_id: targetProduct.id,
-    name: v.name || 'सादा',
-    name_ne: v.name_ne || v.name,
-    price: Number(v.price) || 0,
-    estimated_cost: Number(v.estimated_cost) || 0,
-    is_available: v.is_available ?? true,
-    sort_order: idx + 1,
-  }));
-
-  setLocalItem(STORAGE_KEYS.VARIANTS, [...remainingVariants, ...savedVariants]);
-
-  targetProduct.variants = savedVariants;
-  return targetProduct;
+  return { success: true, archived: false };
 }
 
-export async function deleteProduct(productId: string): Promise<boolean> {
-  const products = getLocalItem<Product[]>(STORAGE_KEYS.PRODUCTS, DEFAULT_PRODUCTS);
-  const variants = getLocalItem<ProductVariant[]>(STORAGE_KEYS.VARIANTS, DEFAULT_VARIANTS);
+// -------------------------------------------------------------
+// 4. INGREDIENTS & INVENTORY (Phase 5 & 7)
+// -------------------------------------------------------------
 
-  setLocalItem(STORAGE_KEYS.PRODUCTS, products.filter(p => p.id !== productId));
-  setLocalItem(STORAGE_KEYS.VARIANTS, variants.filter(v => v.product_id !== productId));
-  return true;
-}
+export async function getIngredients(shopId: string): Promise<Ingredient[]> {
+  const sb = ensureSupabase();
 
-export async function getIngredients(): Promise<Ingredient[]> {
-  if (isSupabaseConfigured() && supabase) {
-    const { data, error } = await supabase.from('ingredients').select('*').order('name', { ascending: true });
-    if (!error && data && data.length > 0) return data as Ingredient[];
-  }
-  return getLocalItem<Ingredient[]>(STORAGE_KEYS.INGREDIENTS, DEFAULT_INGREDIENTS);
+  const { data, error } = await sb
+    .from('ingredients')
+    .select('*')
+    .eq('shop_id', shopId)
+    .order('name', { ascending: true });
+
+  if (error) throw new DatabaseError(`कच्चा पदार्थ लोड हुन सकेन: ${error.message}`, error);
+
+  return (data || []) as Ingredient[];
 }
 
 export async function saveIngredient(ingredient: Partial<Ingredient>): Promise<Ingredient> {
-  const current = getLocalItem<Ingredient[]>(STORAGE_KEYS.INGREDIENTS, DEFAULT_INGREDIENTS);
-  let saved: Ingredient;
+  const sb = ensureSupabase();
 
   if (ingredient.id) {
-    saved = { ...current.find(i => i.id === ingredient.id)!, ...ingredient, updated_at: new Date().toISOString() } as Ingredient;
-    const next = current.map(i => (i.id === ingredient.id ? saved : i));
-    setLocalItem(STORAGE_KEYS.INGREDIENTS, next);
+    const { data, error } = await sb
+      .from('ingredients')
+      .update({
+        name: ingredient.name?.trim(),
+        name_ne: ingredient.name_ne?.trim() || ingredient.name?.trim(),
+        unit: ingredient.unit,
+        quantity_available: ingredient.quantity_available,
+        purchase_cost_per_unit: ingredient.purchase_cost_per_unit,
+        min_threshold: ingredient.min_threshold,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', ingredient.id)
+      .select()
+      .single();
+
+    if (error || !data) throw new DatabaseError(`कच्चा पदार्थ अपडेट भएन: ${error?.message}`, error);
+    return data as Ingredient;
   } else {
-    saved = {
-      id: `ing-${Date.now()}`,
-      shop_id: 'shop-ktm-001',
-      name: ingredient.name || 'नयाँ सामान',
-      name_ne: ingredient.name_ne || ingredient.name,
-      unit: ingredient.unit || 'kg',
-      quantity_available: Number(ingredient.quantity_available) || 0,
-      purchase_cost_per_unit: Number(ingredient.purchase_cost_per_unit) || 0,
-      min_threshold: Number(ingredient.min_threshold) || 1,
-      updated_at: new Date().toISOString(),
-    };
-    setLocalItem(STORAGE_KEYS.INGREDIENTS, [saved, ...current]);
+    const { data, error } = await sb
+      .from('ingredients')
+      .insert({
+        shop_id: ingredient.shop_id,
+        name: ingredient.name!.trim(),
+        name_ne: ingredient.name_ne?.trim() || ingredient.name!.trim(),
+        unit: ingredient.unit || 'kg',
+        quantity_available: ingredient.quantity_available ?? 0,
+        purchase_cost_per_unit: ingredient.purchase_cost_per_unit ?? 0,
+        min_threshold: ingredient.min_threshold ?? 1,
+      })
+      .select()
+      .single();
+
+    if (error || !data) throw new DatabaseError(`नयाँ कच्चा पदार्थ थप्न सकिएन: ${error?.message}`, error);
+    return data as Ingredient;
   }
-  return saved;
 }
 
 export async function restockIngredient(params: {
@@ -469,304 +432,394 @@ export async function restockIngredient(params: {
   totalCost: number;
   recordAsExpense: boolean;
 }): Promise<void> {
-  const ingredients = getLocalItem<Ingredient[]>(STORAGE_KEYS.INGREDIENTS, DEFAULT_INGREDIENTS);
-  const target = ingredients.find(i => i.id === params.ingredientId);
-  if (!target) return;
+  const sb = ensureSupabase();
 
-  target.quantity_available = Number((Number(target.quantity_available) + Number(params.addedQuantity)).toFixed(2));
-  target.purchase_cost_per_unit = Number(params.unitCost);
-  target.updated_at = new Date().toISOString();
+  // Use atomic RPC function
+  const { data, error } = await sb.rpc('restock_ingredient_secure', {
+    p_ingredient_id: params.ingredientId,
+    p_quantity: params.addedQuantity,
+    p_unit_cost: params.unitCost,
+    p_record_expense: params.recordAsExpense,
+  });
 
-  setLocalItem(STORAGE_KEYS.INGREDIENTS, ingredients);
-
-  // If owner chose to record as expense, add to expenses
-  if (params.recordAsExpense && params.totalCost > 0) {
-    await addExpense({
-      category: 'ingredient_purchase',
-      category_ne: 'कच्चा पदार्थ खरिद',
-      amount: params.totalCost,
-      description: `${target.name} (${params.addedQuantity} ${target.unit}) खरिद`,
-      payment_method: 'cash',
-      expense_date: new Date().toISOString().split('T')[0],
-    });
+  if (error) {
+    throw new DatabaseError(`स्टक थप्न असफल भयो: ${error.message}`, error);
   }
 }
 
-export async function getRecipes(): Promise<Recipe[]> {
-  return getLocalItem<Recipe[]>(STORAGE_KEYS.RECIPES, DEFAULT_RECIPES);
-}
-
 // -------------------------------------------------------------
-// ORDERS & STOCK AUTOMATION (Prevents duplicate deductions!)
+// 5. CUSTOMER ORDERING & ATOMIC ORDER MANAGEMENT (Phase 5, 6, 7)
 // -------------------------------------------------------------
 
-export async function getOrders(): Promise<Order[]> {
-  if (isSupabaseConfigured() && supabase) {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*, order_items(*)')
-      .order('created_at', { ascending: false });
-    if (!error && data && data.length > 0) {
-      return data.map((o: any) => ({
-        ...o,
-        items: o.order_items || [],
-      })) as Order[];
-    }
-  }
-  return getLocalItem<Order[]>(STORAGE_KEYS.ORDERS, DEFAULT_ORDERS);
-}
-
-export async function createOrder(orderInput: {
-  shop_id?: string;
+export async function createCustomerOrder(orderInput: {
+  shop_id: string;
   order_type: Order['order_type'];
   table_number?: string;
   customer_name: string;
   customer_phone: string;
   delivery_address?: string;
   customer_notes?: string;
-  items: {
-    product_id: string;
-    variant_id: string;
-    item_name: string;
-    variant_name: string;
-    unit_price: number;
-    quantity: number;
-  }[];
   payment_method: Order['payment_method'];
-}): Promise<Order> {
-  const currentOrders = getLocalItem<Order[]>(STORAGE_KEYS.ORDERS, DEFAULT_ORDERS);
-  const shop = await getShop();
+  items: {
+    variant_id: string;
+    quantity: number;
+    notes?: string;
+  }[];
+}): Promise<{ order_id: string; order_number: string; total_amount: number }> {
+  const sb = ensureSupabase();
 
-  const subtotal = orderInput.items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
-  const delivery_fee = orderInput.order_type === 'delivery' ? shop.delivery_fee : 0;
-  const total_amount = subtotal + delivery_fee;
-
-  // Calculate estimated ingredient cost from variants
-  const variants = getLocalItem<ProductVariant[]>(STORAGE_KEYS.VARIANTS, DEFAULT_VARIANTS);
-  let estCogs = 0;
-  orderInput.items.forEach((item) => {
-    const v = variants.find(variant => variant.id === item.variant_id);
-    if (v && v.estimated_cost) {
-      estCogs += v.estimated_cost * item.quantity;
-    }
+  // Call the server-authoritative RPC procedure (Never trust browser submitted prices!)
+  const { data, error } = await sb.rpc('place_order_secure', {
+    p_shop_id: orderInput.shop_id,
+    p_order_type: orderInput.order_type,
+    p_customer_name: orderInput.customer_name.trim(),
+    p_customer_phone: orderInput.customer_phone.trim(),
+    p_delivery_address: orderInput.delivery_address?.trim() || null,
+    p_customer_notes: orderInput.customer_notes?.trim() || null,
+    p_table_number: orderInput.table_number?.trim() || null,
+    p_payment_method: orderInput.payment_method,
+    p_items: orderInput.items,
   });
 
-  const orderNumCode = Math.floor(100 + Math.random() * 900);
-  const newOrder: Order = {
-    id: `ord-${Date.now()}`,
-    shop_id: orderInput.shop_id || shop.id,
-    order_number: `MP-${orderNumCode}`,
-    order_type: orderInput.order_type,
-    table_number: orderInput.table_number,
-    customer_name: orderInput.customer_name.trim(),
-    customer_phone: orderInput.customer_phone.trim(),
-    delivery_address: orderInput.delivery_address?.trim(),
-    customer_notes: orderInput.customer_notes?.trim(),
-    status: 'pending',
-    subtotal,
-    delivery_fee,
-    discount: 0,
-    total_amount,
-    payment_method: orderInput.payment_method,
-    payment_status: orderInput.payment_method === 'online_qr' ? 'paid' : 'pending',
-    inventory_deducted: false,
-    estimated_ingredient_cost: estCogs,
-    created_at: new Date().toISOString(),
-    items: orderInput.items.map((item, idx) => ({
-      id: `item-${Date.now()}-${idx}`,
-      order_id: `ord-${Date.now()}`,
-      shop_id: shop.id,
-      product_id: item.product_id,
-      variant_id: item.variant_id,
-      item_name: item.item_name,
-      variant_name: item.variant_name,
-      unit_price: item.unit_price,
-      quantity: item.quantity,
-      total_price: item.unit_price * item.quantity,
-    })),
-  };
+  if (error || !data) {
+    throw new DatabaseError(`अर्डर पठाउन असफल भयो: ${error?.message || 'अज्ञात त्रुटि'}`, error);
+  }
 
-  const updatedOrders = [newOrder, ...currentOrders];
-  setLocalItem(STORAGE_KEYS.ORDERS, updatedOrders);
+  return data as { order_id: string; order_number: string; total_amount: number };
+}
 
-  return newOrder;
+export const createOrder = createCustomerOrder;
+
+export async function createDirectSale(params: {
+  shop_id: string;
+  amount: number;
+  description: string;
+  payment_method?: 'cash' | 'online_qr';
+}): Promise<{ order_id: string; order_number: string }> {
+  const sb = ensureSupabase();
+  const orderNum = `CS-${Date.now().toString().slice(-4)}`;
+
+  const { data: order, error: orderErr } = await sb
+    .from('orders')
+    .insert({
+      shop_id: params.shop_id,
+      order_number: orderNum,
+      order_type: 'takeaway',
+      customer_name: 'काउन्टर ग्राहक',
+      customer_phone: '9800000000',
+      status: 'completed',
+      subtotal: params.amount,
+      total_amount: params.amount,
+      payment_method: params.payment_method === 'online_qr' ? 'online_qr' : 'cash_on_pickup',
+      payment_status: 'paid',
+      inventory_deducted: false,
+      completed_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (orderErr || !order) {
+    throw new DatabaseError(`बिक्री रेकर्ड गर्न सकिएन: ${orderErr?.message || 'अज्ञात त्रुटि'}`, orderErr);
+  }
+
+  // Insert order item
+  await sb.from('order_items').insert({
+    order_id: order.id,
+    shop_id: params.shop_id,
+    item_name: params.description || 'काउन्टर बिक्री',
+    variant_name: 'नगद बिक्री',
+    unit_price: params.amount,
+    quantity: 1,
+    total_price: params.amount,
+  });
+
+  // Insert sales table entry for direct accounting
+  await sb.from('sales').insert({
+    shop_id: params.shop_id,
+    order_id: order.id,
+    total_revenue: params.amount,
+    gross_profit: params.amount,
+    payment_method: params.payment_method || 'cash',
+  });
+
+  return { order_id: order.id, order_number: orderNum };
+}
+
+export async function getOrders(shopId: string): Promise<Order[]> {
+  const sb = ensureSupabase();
+
+  const { data, error } = await sb
+    .from('orders')
+    .select('*, items:order_items(*)')
+    .eq('shop_id', shopId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new DatabaseError(`अर्डर सूची लोड हुन सकेन: ${error.message}`, error);
+  }
+
+  return (data || []) as Order[];
+}
+
+export async function getOrderById(orderId: string): Promise<Order | null> {
+  const sb = ensureSupabase();
+
+  const { data, error } = await sb
+    .from('orders')
+    .select('*, items:order_items(*)')
+    .eq('id', orderId)
+    .single();
+
+  if (error) return null;
+  return data as Order;
 }
 
 export async function updateOrderStatus(
   orderId: string,
   newStatus: OrderStatus,
   cancellationReason?: string
-): Promise<{ success: boolean; error?: string; order?: Order }> {
-  try {
-    const orders = getLocalItem<Order[]>(STORAGE_KEYS.ORDERS, DEFAULT_ORDERS);
-    const target = orders.find(o => o.id === orderId);
+): Promise<{ success: boolean; error?: string }> {
+  const sb = ensureSupabase();
 
-    if (!target) {
-      return { success: false, error: 'अर्डर फेला परेन (Order not found).' };
-    }
-
-    target.status = newStatus;
-    if (cancellationReason) {
-      target.cancellation_reason = cancellationReason;
-    }
-
-    // If order is completed, mark as paid if not already
-    if (newStatus === 'completed') {
-      if (target.payment_status === 'pending') {
-        target.payment_status = 'paid';
-      }
-
-      // CRITICAL: Deduct inventory stock according to recipe ONLY ONCE!
-      if (!target.inventory_deducted) {
-        deductStockForOrder(target);
-        target.inventory_deducted = true;
-      }
-    }
-
-    setLocalItem(STORAGE_KEYS.ORDERS, orders);
-    return { success: true, order: target };
-  } catch (err: any) {
-    console.error('Failed to update order status:', err);
-    return { success: false, error: err.message || 'अर्डर स्थिति अपडेट गर्न असफल भयो।' };
-  }
-}
-
-// Deduct inventory ingredients based on recipes
-function deductStockForOrder(order: Order) {
-  const recipes = getLocalItem<Recipe[]>(STORAGE_KEYS.RECIPES, DEFAULT_RECIPES);
-  const ingredients = getLocalItem<Ingredient[]>(STORAGE_KEYS.INGREDIENTS, DEFAULT_INGREDIENTS);
-
-  let modified = false;
-
-  order.items.forEach((item) => {
-    if (!item.variant_id) return;
-    const itemRecipes = recipes.filter(r => r.variant_id === item.variant_id);
-
-    itemRecipes.forEach((recipe) => {
-      const ing = ingredients.find(i => i.id === recipe.ingredient_id);
-      if (ing) {
-        const requiredQty = recipe.quantity_needed * item.quantity;
-        // Reduce stock without letting it become negative or capping at 0
-        ing.quantity_available = Math.max(0, Number((Number(ing.quantity_available) - requiredQty).toFixed(2)));
-        ing.updated_at = new Date().toISOString();
-        modified = true;
-      }
+  // If completing order: use secure RPC to deduct inventory exactly once!
+  if (newStatus === 'completed') {
+    const { data, error } = await sb.rpc('complete_order_and_deduct_inventory', {
+      p_order_id: orderId,
     });
-  });
-
-  if (modified) {
-    setLocalItem(STORAGE_KEYS.INGREDIENTS, ingredients);
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true };
   }
-}
 
-// -------------------------------------------------------------
-// EXPENSES & CASH WITHDRAWALS (MODULE 4)
-// -------------------------------------------------------------
+  // If cancelling order: use secure RPC to reverse inventory if stock was previously deducted!
+  if (newStatus === 'cancelled') {
+    const { data, error } = await sb.rpc('cancel_order_with_reversal', {
+      p_order_id: orderId,
+      p_reason: cancellationReason || 'पसल वा ग्राहकबाट रद्द',
+    });
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  }
 
-export async function getExpenses(): Promise<Expense[]> {
-  return getLocalItem<Expense[]>(STORAGE_KEYS.EXPENSES, DEFAULT_EXPENSES);
-}
+  // Other status changes (accepted, preparing, ready)
+  const timestampField =
+    newStatus === 'accepted'
+      ? 'accepted_at'
+      : newStatus === 'preparing'
+      ? 'preparing_at'
+      : newStatus === 'ready'
+      ? 'ready_at'
+      : null;
 
-export async function addExpense(expenseInput: Omit<Expense, 'id' | 'created_at' | 'shop_id'>): Promise<Expense> {
-  const current = getLocalItem<Expense[]>(STORAGE_KEYS.EXPENSES, DEFAULT_EXPENSES);
-  const newExp: Expense = {
-    id: `exp-${Date.now()}`,
-    shop_id: 'shop-ktm-001',
-    category: expenseInput.category,
-    category_ne: expenseInput.category_ne || getCategoryNepali(expenseInput.category),
-    amount: Number(expenseInput.amount),
-    payment_method: expenseInput.payment_method || 'cash',
-    description: expenseInput.description.trim(),
-    expense_date: expenseInput.expense_date || new Date().toISOString().split('T')[0],
-    created_at: new Date().toISOString(),
+  const updatePayload: Record<string, any> = {
+    status: newStatus,
+    updated_at: new Date().toISOString(),
   };
 
-  const next = [newExp, ...current];
-  setLocalItem(STORAGE_KEYS.EXPENSES, next);
-  return newExp;
+  if (timestampField) {
+    updatePayload[timestampField] = new Date().toISOString();
+  }
+
+  const { error } = await sb.from('orders').update(updatePayload).eq('id', orderId);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
 }
 
-export async function deleteExpense(id: string): Promise<boolean> {
-  const current = getLocalItem<Expense[]>(STORAGE_KEYS.EXPENSES, DEFAULT_EXPENSES);
-  setLocalItem(STORAGE_KEYS.EXPENSES, current.filter(e => e.id !== id));
+// -------------------------------------------------------------
+// 6. EXPENSES & HOUSEHOLD WITHDRAWALS (Phase 8)
+// -------------------------------------------------------------
+
+export async function getExpenses(shopId: string): Promise<Expense[]> {
+  const sb = ensureSupabase();
+
+  const { data, error } = await sb
+    .from('expenses')
+    .select('*')
+    .eq('shop_id', shopId)
+    .order('expense_date', { ascending: false });
+
+  if (error) throw new DatabaseError(`खर्च सूची लोड भएन: ${error.message}`, error);
+  return (data || []) as Expense[];
+}
+
+export async function addExpense(expense: Omit<Expense, 'id' | 'created_at'>): Promise<Expense> {
+  const sb = ensureSupabase();
+
+  const { data, error } = await sb
+    .from('expenses')
+    .insert({
+      shop_id: expense.shop_id,
+      category: expense.category,
+      category_ne: expense.category_ne || getCategoryNepali(expense.category),
+      amount: expense.amount,
+      payment_method: expense.payment_method || 'cash',
+      description: expense.description.trim(),
+      expense_date: expense.expense_date || new Date().toISOString().split('T')[0],
+    })
+    .select()
+    .single();
+
+  if (error || !data) throw new DatabaseError(`खर्च सेभ हुन सकेन: ${error?.message}`, error);
+  return data as Expense;
+}
+
+export async function deleteExpense(expenseId: string): Promise<boolean> {
+  const sb = ensureSupabase();
+  const { error } = await sb.from('expenses').delete().eq('id', expenseId);
+  if (error) throw new DatabaseError(`खर्च मेटाउन सकिएन: ${error.message}`, error);
   return true;
 }
 
-export async function getHouseholdWithdrawals(): Promise<HouseholdWithdrawal[]> {
-  return getLocalItem<HouseholdWithdrawal[]>(STORAGE_KEYS.WITHDRAWALS, DEFAULT_WITHDRAWALS);
+export async function getHouseholdWithdrawals(shopId: string): Promise<HouseholdWithdrawal[]> {
+  const sb = ensureSupabase();
+
+  const { data, error } = await sb
+    .from('household_withdrawals')
+    .select('*')
+    .eq('shop_id', shopId)
+    .order('withdrawal_date', { ascending: false });
+
+  if (error) throw new DatabaseError(`घरखर्च सूची लोड भएन: ${error.message}`, error);
+  return (data || []) as HouseholdWithdrawal[];
 }
 
-export async function addHouseholdWithdrawal(amount: number, reason?: string, date?: string): Promise<HouseholdWithdrawal> {
-  const current = getLocalItem<HouseholdWithdrawal[]>(STORAGE_KEYS.WITHDRAWALS, DEFAULT_WITHDRAWALS);
-  const newW: HouseholdWithdrawal = {
-    id: `wth-${Date.now()}`,
-    shop_id: 'shop-ktm-001',
-    amount: Number(amount),
-    reason: reason?.trim() || 'व्यक्तिगत/घरखर्च',
-    withdrawal_date: date || new Date().toISOString().split('T')[0],
-    created_at: new Date().toISOString(),
-  };
+export async function addHouseholdWithdrawal(
+  shopId: string,
+  amount: number,
+  reason?: string,
+  date?: string
+): Promise<HouseholdWithdrawal> {
+  const sb = ensureSupabase();
 
-  const next = [newW, ...current];
-  setLocalItem(STORAGE_KEYS.WITHDRAWALS, next);
-  return newW;
-}
+  const { data, error } = await sb
+    .from('household_withdrawals')
+    .insert({
+      shop_id: shopId,
+      amount,
+      reason: reason?.trim() || 'व्यक्तिगत/घरखर्च',
+      withdrawal_date: date || new Date().toISOString().split('T')[0],
+    })
+    .select()
+    .single();
 
-// -------------------------------------------------------------
-// CUSTOMER CREDITS (उधारो खाता)
-// -------------------------------------------------------------
-
-export async function getCustomerCredits(): Promise<CustomerCredit[]> {
-  return getLocalItem<CustomerCredit[]>(STORAGE_KEYS.CREDITS, DEFAULT_CREDITS);
-}
-
-export async function addCustomerCredit(credit: Omit<CustomerCredit, 'id' | 'created_at' | 'shop_id' | 'remaining_amount' | 'status'>): Promise<CustomerCredit> {
-  const current = getLocalItem<CustomerCredit[]>(STORAGE_KEYS.CREDITS, DEFAULT_CREDITS);
-  const remaining = Number(credit.credit_amount) - Number(credit.paid_amount || 0);
-
-  const newCredit: CustomerCredit = {
-    id: `crd-${Date.now()}`,
-    shop_id: 'shop-ktm-001',
-    customer_name: credit.customer_name.trim(),
-    customer_phone: credit.customer_phone.trim(),
-    credit_amount: Number(credit.credit_amount),
-    paid_amount: Number(credit.paid_amount || 0),
-    remaining_amount: Math.max(0, remaining),
-    status: remaining <= 0 ? 'settled' : credit.paid_amount > 0 ? 'partially_paid' : 'unpaid',
-    due_date: credit.due_date,
-    notes: credit.notes?.trim(),
-    created_at: new Date().toISOString(),
-  };
-
-  const next = [newCredit, ...current];
-  setLocalItem(STORAGE_KEYS.CREDITS, next);
-  return newCredit;
-}
-
-export async function settleCreditPayment(creditId: string, payAmount: number): Promise<CustomerCredit | null> {
-  const current = getLocalItem<CustomerCredit[]>(STORAGE_KEYS.CREDITS, DEFAULT_CREDITS);
-  const target = current.find(c => c.id === creditId);
-  if (!target) return null;
-
-  target.paid_amount = Number((Number(target.paid_amount) + Number(payAmount)).toFixed(2));
-  target.remaining_amount = Math.max(0, Number((Number(target.credit_amount) - target.paid_amount).toFixed(2)));
-  target.status = target.remaining_amount <= 0 ? 'settled' : 'partially_paid';
-
-  setLocalItem(STORAGE_KEYS.CREDITS, current);
-  return target;
+  if (error || !data) throw new DatabaseError(`घरखर्च सेभ हुन सकेन: ${error?.message}`, error);
+  return data as HouseholdWithdrawal;
 }
 
 // -------------------------------------------------------------
-// FINANCIAL ENGINE (MODULE 4)
+// 7. CUSTOMER CREDITS & REPAYMENTS (Phase 8)
 // -------------------------------------------------------------
 
-export function calculateFinancialSummary(period: 'day' | 'week' | 'month' | 'all'): FinancialMetrics {
-  const orders = getLocalItem<Order[]>(STORAGE_KEYS.ORDERS, DEFAULT_ORDERS);
-  const expenses = getLocalItem<Expense[]>(STORAGE_KEYS.EXPENSES, DEFAULT_EXPENSES);
-  const withdrawals = getLocalItem<HouseholdWithdrawal[]>(STORAGE_KEYS.WITHDRAWALS, DEFAULT_WITHDRAWALS);
-  const credits = getLocalItem<CustomerCredit[]>(STORAGE_KEYS.CREDITS, DEFAULT_CREDITS);
+export async function getCustomerCredits(shopId: string): Promise<CustomerCredit[]> {
+  const sb = ensureSupabase();
 
+  const { data, error } = await sb
+    .from('customer_credits')
+    .select('*, payments:credit_payments(*)')
+    .eq('shop_id', shopId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new DatabaseError(`उधारो खाता लोड भएन: ${error.message}`, error);
+  return (data || []) as CustomerCredit[];
+}
+
+export async function addCustomerCredit(credit: {
+  shop_id: string;
+  order_id?: string;
+  customer_name: string;
+  customer_phone: string;
+  credit_amount: number;
+  due_date?: string;
+  notes?: string;
+}): Promise<CustomerCredit> {
+  const sb = ensureSupabase();
+
+  const { data, error } = await sb
+    .from('customer_credits')
+    .insert({
+      shop_id: credit.shop_id,
+      order_id: credit.order_id || null,
+      customer_name: credit.customer_name.trim(),
+      customer_phone: credit.customer_phone.trim(),
+      credit_amount: credit.credit_amount,
+      paid_amount: 0.00,
+      remaining_amount: credit.credit_amount,
+      status: 'unpaid',
+      due_date: credit.due_date || null,
+      notes: credit.notes?.trim() || null,
+    })
+    .select()
+    .single();
+
+  if (error || !data) throw new DatabaseError(`उधारो दर्ता भएन: ${error?.message}`, error);
+  return data as CustomerCredit;
+}
+
+export async function settleCreditPayment(params: {
+  shopId: string;
+  creditId: string;
+  paymentAmount: number;
+  paymentMethod?: string;
+  notes?: string;
+}): Promise<void> {
+  const sb = ensureSupabase();
+
+  // 1. Insert credit payment record
+  const { error: payErr } = await sb.from('credit_payments').insert({
+    shop_id: params.shopId,
+    credit_id: params.creditId,
+    payment_amount: params.paymentAmount,
+    payment_date: new Date().toISOString().split('T')[0],
+    payment_method: params.paymentMethod || 'cash',
+    notes: params.notes || null,
+  });
+
+  if (payErr) throw new DatabaseError(`भुक्तानी दर्ता भएन: ${payErr.message}`, payErr);
+
+  // 2. Update remaining amount
+  const { data: credit } = await sb
+    .from('customer_credits')
+    .select('credit_amount, paid_amount')
+    .eq('id', params.creditId)
+    .single();
+
+  if (credit) {
+    const newPaid = Number(credit.paid_amount) + Number(params.paymentAmount);
+    const newRemaining = Math.max(0, Number(credit.credit_amount) - newPaid);
+    const newStatus = newRemaining <= 0 ? 'settled' : 'partially_paid';
+
+    await sb
+      .from('customer_credits')
+      .update({
+        paid_amount: newPaid,
+        remaining_amount: newRemaining,
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', params.creditId);
+  }
+}
+
+// -------------------------------------------------------------
+// 8. REAL FINANCIAL REPORTING ENGINE (Phase 8)
+// -------------------------------------------------------------
+
+export function calculateRealFinancialMetrics(
+  orders: Order[],
+  expenses: Expense[],
+  withdrawals: HouseholdWithdrawal[],
+  credits: CustomerCredit[],
+  period: 'day' | 'week' | 'month' | 'all'
+): FinancialMetrics {
   const now = new Date();
+
   const filterDate = (dateStr: string) => {
     if (period === 'all') return true;
     const d = new Date(dateStr);
@@ -783,11 +836,11 @@ export function calculateFinancialSummary(period: 'day' | 'week' | 'month' | 'al
     return true;
   };
 
-  // Filter completed sales
-  const completedOrders = orders.filter(o => o.status === 'completed' && filterDate(o.created_at));
+  // Only consider real completed orders (Never include cancelled, pending, or fake orders!)
+  const completedOrders = orders.filter((o) => o.status === 'completed' && filterDate(o.created_at));
   const totalSales = completedOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
 
-  // Cost of ingredients used (COGS)
+  // Real Cost of Goods Sold (COGS)
   let cogs = 0;
   let missingRecipeCount = 0;
 
@@ -799,21 +852,20 @@ export function calculateFinancialSummary(period: 'day' | 'week' | 'month' | 'al
     }
   });
 
-  const isCogsIncomplete = missingRecipeCount > 0;
+  const isCogsIncomplete = missingRecipeCount > 0 && completedOrders.length > 0;
 
-  // Operating Expenses (rent, gas, packing, other) - excludes ingredient_purchase to avoid double counting!
-  // Note: MODULE 4 strictly says: "Do not subtract the same ingredient cost twice."
-  // COGS covers ingredients of food sold. Operating expenses cover rent, gas, electricity, packaging, etc.
-  const filteredExpenses = expenses.filter(e => filterDate(e.expense_date || e.created_at));
+  // Operating Expenses (rent, gas, electricity, packaging, etc.)
+  // Note: MODULE 4 & 8 rule: Exclude ingredient_purchase from operating expenses to prevent double-counting with COGS!
+  const filteredExpenses = expenses.filter((e) => filterDate(e.expense_date || e.created_at));
   const operatingExpenses = filteredExpenses
-    .filter(e => e.category !== 'ingredient_purchase')
+    .filter((e) => e.category !== 'ingredient_purchase')
     .reduce((sum, e) => sum + Number(e.amount), 0);
 
-  // Household withdrawals (घरखर्च - tracked separately!)
-  const filteredWithdrawals = withdrawals.filter(w => filterDate(w.withdrawal_date || w.created_at));
+  // Household Withdrawals (घरखर्च - strictly separated from operating expenses!)
+  const filteredWithdrawals = withdrawals.filter((w) => filterDate(w.withdrawal_date || w.created_at));
   const householdWithdrawals = filteredWithdrawals.reduce((sum, w) => sum + Number(w.amount), 0);
 
-  // Gross profit = Net sales - Cost of ingredients used
+  // Gross profit = Sales - COGS
   const grossProfit = totalSales - cogs;
   const grossMargin = totalSales > 0 ? Math.round((grossProfit / totalSales) * 100) : 0;
 
@@ -822,21 +874,17 @@ export function calculateFinancialSummary(period: 'day' | 'week' | 'month' | 'al
   const operatingMargin = totalSales > 0 ? Math.round((operatingProfit / totalSales) * 100) : 0;
 
   // Actual Cash In and Cash Out
-  // Actual cash received: paid orders + customer credit recoveries
   const actualCashReceived = completedOrders
-    .filter(o => o.payment_status === 'paid')
+    .filter((o) => o.payment_status === 'paid')
     .reduce((sum, o) => sum + Number(o.total_amount), 0);
 
-  // Actual cash paid out = ALL expenses (including ingredient purchases) + household withdrawals
-  const allExpensesCash = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  const actualCashPaidOut = allExpensesCash + householdWithdrawals;
-
-  // Net cash movement = Actual cash received - Actual cash paid out
+  const allCashOutExpenses = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const actualCashPaidOut = allCashOutExpenses + householdWithdrawals;
   const netCashMovement = actualCashReceived - actualCashPaidOut;
 
   // Unpaid credit
   const unpaidCreditTotal = credits
-    .filter(c => c.status !== 'settled')
+    .filter((c) => c.status !== 'settled')
     .reduce((sum, c) => sum + Number(c.remaining_amount), 0);
 
   return {
@@ -868,3 +916,110 @@ function getCategoryNepali(cat: string): string {
     default: return 'अन्य खर्च';
   }
 }
+
+export const calculateFinancialSummary = calculateRealFinancialMetrics;
+
+// -------------------------------------------------------------
+// 9. SMART LPG GAS TRACKER
+// -------------------------------------------------------------
+
+export async function getLpgCylinders(shopId: string): Promise<LpgCylinder[]> {
+  const sb = ensureSupabase();
+  const { data, error } = await sb
+    .from('lpg_cylinders')
+    .select('*')
+    .eq('shop_id', shopId)
+    .order('purchase_date', { ascending: false });
+
+  if (error) {
+    throw new DatabaseError(`ग्यास सिलिन्डर विवरण लोड हुन सकेन: ${error.message}`, error);
+  }
+  return (data || []) as LpgCylinder[];
+}
+
+export async function addLpgCylinder(params: {
+  shop_id: string;
+  purchase_date: string;
+  finished_date?: string | null;
+  refill_cost: number;
+  cylinder_size_kg: number;
+  quantity_purchased: number;
+  notes?: string;
+}): Promise<LpgCylinder> {
+  const sb = ensureSupabase();
+
+  const { data, error } = await sb
+    .from('lpg_cylinders')
+    .insert({
+      shop_id: params.shop_id,
+      purchase_date: params.purchase_date,
+      finished_date: params.finished_date || null,
+      refill_cost: params.refill_cost,
+      cylinder_size_kg: params.cylinder_size_kg || 14.2,
+      quantity_purchased: params.quantity_purchased || 1,
+      notes: params.notes || null,
+    })
+    .select()
+    .single();
+
+  if (error || !data) {
+    throw new DatabaseError(`ग्यास सिलिन्डर रेकर्ड थप्न सकिएन: ${error?.message || 'अज्ञात त्रुटि'}`, error);
+  }
+
+  // Automatically log as operating expense under gas_electricity
+  await sb.from('expenses').insert({
+    shop_id: params.shop_id,
+    category: 'gas_electricity',
+    category_ne: 'ग्यास र बिजुली (LPG Cylinder Purchase)',
+    amount: params.refill_cost,
+    payment_method: 'cash',
+    description: `LPG ग्यास सिलिन्डर खरिद (${params.cylinder_size_kg || 14.2} kg)`,
+    expense_date: params.purchase_date,
+  });
+
+  return data as LpgCylinder;
+}
+
+export async function updateLpgCylinder(
+  id: string,
+  params: Partial<LpgCylinder>
+): Promise<void> {
+  const sb = ensureSupabase();
+  const { error } = await sb
+    .from('lpg_cylinders')
+    .update(params)
+    .eq('id', id);
+
+  if (error) {
+    throw new DatabaseError(`ग्यास सिलिन्डर विवरण अपडेट गर्न सकिएन: ${error.message}`, error);
+  }
+}
+
+export async function markLpgFinished(
+  id: string,
+  finishedDate: string
+): Promise<void> {
+  const sb = ensureSupabase();
+  const { error } = await sb
+    .from('lpg_cylinders')
+    .update({ finished_date: finishedDate })
+    .eq('id', id);
+
+  if (error) {
+    throw new DatabaseError(`ग्यास सिलिन्डर समाप्त रूपमा चिन्ह लगाउन सकिएन: ${error.message}`, error);
+  }
+}
+
+export async function deleteLpgCylinder(id: string): Promise<void> {
+  const sb = ensureSupabase();
+  const { error } = await sb
+    .from('lpg_cylinders')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    throw new DatabaseError(`ग्यास सिलिन्डर मेटाउन सकिएन: ${error.message}`, error);
+  }
+}
+
+

@@ -7,7 +7,7 @@ import {
   Order,
   PaymentMethod,
 } from '../../types';
-import { createOrder } from '../../lib/storage';
+import { createCustomerOrder, getOrderById } from '../../lib/storage';
 import {
   ShoppingBag,
   Plus,
@@ -149,7 +149,7 @@ export const CustomerOrderingView: React.FC<CustomerOrderingViewProps> = ({
 
     try {
       setIsSubmitting(true);
-      const newOrder = await createOrder({
+      const res = await createCustomerOrder({
         shop_id: shop.id,
         order_type: orderType,
         customer_name: customerName,
@@ -157,22 +157,22 @@ export const CustomerOrderingView: React.FC<CustomerOrderingViewProps> = ({
         delivery_address: deliveryAddress,
         customer_notes: customerNotes,
         items: cart.map((item) => ({
-          product_id: item.product.id,
           variant_id: item.variant.id,
-          item_name: item.product.name_ne || item.product.name,
-          variant_name: item.variant.name_ne || item.variant.name,
-          unit_price: item.variant.price,
           quantity: item.quantity,
         })),
         payment_method: paymentMethod,
       });
 
-      setActiveOrder(newOrder);
+      // Retrieve confirmed order from database
+      const confirmedOrder = await getOrderById(res.order_id);
+      if (confirmedOrder) {
+        setActiveOrder(confirmedOrder);
+        if (onOrderCreated) {
+          onOrderCreated(confirmedOrder);
+        }
+      }
       setCart([]);
       setIsCheckoutOpen(false);
-      if (onOrderCreated) {
-        onOrderCreated(newOrder);
-      }
     } catch (err: any) {
       setSubmitError(err?.message || 'अर्डर पठाउन सकिएन। कृपया फेरि प्रयास गर्नुहोस्।');
     } finally {

@@ -4,9 +4,10 @@ import {
   Expense,
   HouseholdWithdrawal,
   CustomerCredit,
+  Order,
 } from '../../types';
 import {
-  calculateFinancialSummary,
+  calculateRealFinancialMetrics,
   deleteExpense,
   settleCreditPayment,
   addCustomerCredit,
@@ -26,6 +27,8 @@ import {
 } from 'lucide-react';
 
 interface FinanceDashboardProps {
+  shopId: string;
+  orders: Order[];
   expenses: Expense[];
   withdrawals: HouseholdWithdrawal[];
   credits: CustomerCredit[];
@@ -35,6 +38,8 @@ interface FinanceDashboardProps {
 }
 
 export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
+  shopId,
+  orders,
   expenses,
   withdrawals,
   credits,
@@ -56,7 +61,7 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
   const [credAmount, setCredAmount] = useState<number>(0);
   const [credNotes, setCredNotes] = useState('');
 
-  const metrics: FinancialMetrics = calculateFinancialSummary(period);
+  const metrics: FinancialMetrics = calculateRealFinancialMetrics(orders, expenses, withdrawals, credits, period);
 
   const getPeriodLabel = () => {
     switch (period) {
@@ -70,7 +75,11 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
   const handleSettleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!settlingCredit || settleAmount <= 0) return;
-    await settleCreditPayment(settlingCredit.id, settleAmount);
+    await settleCreditPayment({
+      shopId,
+      creditId: settlingCredit.id,
+      paymentAmount: settleAmount,
+    });
     setSettlingCredit(null);
     setSettleAmount(0);
     onDataChanged();
@@ -80,10 +89,10 @@ export const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
     e.preventDefault();
     if (!credName.trim() || credAmount <= 0) return;
     await addCustomerCredit({
+      shop_id: shopId,
       customer_name: credName,
       customer_phone: credPhone,
       credit_amount: credAmount,
-      paid_amount: 0,
       notes: credNotes,
     });
     setIsAddCreditOpen(false);

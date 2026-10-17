@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Product, ProductVariant, Category, Ingredient } from '../../types';
-import { saveProduct, deleteProduct } from '../../lib/storage';
+import { saveProductWithVariants, deleteProduct } from '../../lib/storage';
 import {
   UtensilsCrossed,
   Plus,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 
 interface MenuManagerProps {
+  shopId: string;
   products: Product[];
   categories: Category[];
   ingredients: Ingredient[];
@@ -24,6 +25,7 @@ interface MenuManagerProps {
 }
 
 export const MenuManager: React.FC<MenuManagerProps> = ({
+  shopId,
   products,
   categories,
   ingredients,
@@ -44,6 +46,7 @@ export const MenuManager: React.FC<MenuManagerProps> = ({
   // Open modal to add new product
   const handleAddNewProduct = () => {
     setEditingProduct({
+      shop_id: shopId,
       name: '',
       name_ne: '',
       category_id: categories[0]?.id || '',
@@ -128,7 +131,17 @@ export const MenuManager: React.FC<MenuManagerProps> = ({
 
     try {
       setIsSaving(true);
-      await saveProduct(editingProduct, editingVariants);
+      await saveProductWithVariants(
+        { ...editingProduct, shop_id: shopId },
+        editingVariants.map(v => ({
+          id: v.id,
+          name: v.name!,
+          name_ne: v.name_ne || v.name!,
+          price: Number(v.price),
+          estimated_cost: Number(v.estimated_cost || 0),
+          is_available: v.is_available ?? true,
+        }))
+      );
       setIsModalOpen(false);
       onMenuUpdated();
     } catch (err: any) {
@@ -138,11 +151,18 @@ export const MenuManager: React.FC<MenuManagerProps> = ({
     }
   };
 
-  // Delete product
+  // Delete product (Phase 4: safe delete / archive)
   const handleDeleteProduct = async (prodId: string, name: string) => {
     if (window.confirm(`के तपाईं "${name}" मेटाउन निश्चित हुनुहुन्छ?`)) {
-      await deleteProduct(prodId);
-      onMenuUpdated();
+      try {
+        const res = await deleteProduct(prodId);
+        if (res.archived) {
+          alert(`अघिल्ला अर्डरहरूमा यो खाना भएको हुनाले यसलाई सुरक्षित रूपमा अभिलेख (Archive) गरियो।`);
+        }
+        onMenuUpdated();
+      } catch (err: any) {
+        alert(err.message || 'मेटाउन सकिएन।');
+      }
     }
   };
 

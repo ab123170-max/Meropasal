@@ -1,4 +1,4 @@
-// Data models for MeethoPasal AI
+// Core Data Models for Meropasal Production Application
 
 export type OrderType = 'dine_in' | 'takeaway' | 'delivery';
 
@@ -17,7 +17,7 @@ export type ExpenseCategory =
   | 'repair_maintenance'
   | 'other';
 
-export type IngredientUnit = 'kg' | 'gram' | 'litre' | 'ml' | 'piece' | 'packet';
+export type IngredientUnit = 'kg' | 'g' | 'gram' | 'litre' | 'ml' | 'piece' | 'packet';
 
 export interface Shop {
   id: string;
@@ -39,6 +39,15 @@ export interface Shop {
   online_payment_qr_url?: string;
   online_payment_instructions?: string;
   created_at: string;
+  updated_at?: string;
+}
+
+export interface ShopMember {
+  id: string;
+  shop_id: string;
+  user_id: string;
+  role: 'owner' | 'manager' | 'staff';
+  created_at: string;
 }
 
 export interface Category {
@@ -48,6 +57,7 @@ export interface Category {
   name_ne?: string;
   sort_order: number;
   is_active: boolean;
+  created_at?: string;
 }
 
 export interface Product {
@@ -59,13 +69,19 @@ export interface Product {
   description?: string;
   image_url?: string;
   is_active: boolean;
+  is_archived?: boolean;
   sort_order: number;
   variants?: ProductVariant[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface RecipeItem {
   id?: string;
+  recipe_id?: string;
   ingredient_id: string;
+  ingredient_name?: string;
+  unit?: string;
   quantity_needed: number;
 }
 
@@ -78,9 +94,15 @@ export interface ProductVariant {
   price: number;
   estimated_cost: number;
   is_available: boolean;
+  is_archived?: boolean;
   image_url?: string;
   sort_order: number;
-  recipes?: RecipeItem[];
+  recipe?: {
+    id: string;
+    items: RecipeItem[];
+  };
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Ingredient {
@@ -92,15 +114,8 @@ export interface Ingredient {
   quantity_available: number;
   purchase_cost_per_unit: number;
   min_threshold: number;
-  updated_at: string;
-}
-
-export interface Recipe {
-  id: string;
-  shop_id: string;
-  variant_id: string;
-  ingredient_id: string;
-  quantity_needed: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface InventoryMovement {
@@ -109,7 +124,7 @@ export interface InventoryMovement {
   ingredient_id: string;
   ingredient_name?: string;
   change_quantity: number;
-  reason: 'purchase' | 'sale_deduction' | 'waste' | 'adjustment';
+  reason: 'purchase' | 'sale_deduction' | 'waste' | 'adjustment' | 'cancellation_reversal';
   reference_order_id?: string;
   unit_cost: number;
   total_cost: number;
@@ -152,7 +167,13 @@ export interface Order {
   inventory_deducted: boolean;
   estimated_ingredient_cost: number;
   items: OrderItem[];
+  accepted_at?: string;
+  preparing_at?: string;
+  ready_at?: string;
+  completed_at?: string;
+  cancelled_at?: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface Expense {
@@ -164,6 +185,19 @@ export interface Expense {
   payment_method: string;
   description: string;
   expense_date: string;
+  receipt_url?: string;
+  created_at: string;
+}
+
+export interface Sale {
+  id: string;
+  shop_id: string;
+  order_id?: string;
+  sale_date: string;
+  total_revenue: number;
+  total_cogs: number;
+  gross_profit: number;
+  payment_method: string;
   created_at: string;
 }
 
@@ -188,8 +222,34 @@ export interface CustomerCredit {
   status: 'unpaid' | 'partially_paid' | 'settled';
   due_date?: string;
   notes?: string;
+  payments?: CreditPayment[];
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CreditPayment {
+  id: string;
+  shop_id: string;
+  credit_id: string;
+  payment_amount: number;
+  payment_date: string;
+  payment_method: string;
+  notes?: string;
   created_at: string;
 }
+
+export interface LpgCylinder {
+  id: string;
+  shop_id: string;
+  purchase_date: string;
+  finished_date?: string | null;
+  refill_cost: number;
+  cylinder_size_kg: number;
+  quantity_purchased: number;
+  notes?: string;
+  created_at: string;
+}
+
 
 export interface FinancialMetrics {
   totalSales: number;
